@@ -301,11 +301,16 @@ class OpenIDConnect(object):
         id_token = credentials.id_token
         if not self.is_id_token_valid(id_token):
             logger.debug("Invalid ID token")
-            if id_token.get('hd') != self.google_apps_domain:
-                return self.oidc_error(
-                    "You must log in with an account from the {0} domain."
-                    .format(self.google_apps_domain),
-                    self.WRONG_GOOGLE_APPS_DOMAIN)
+            # None will allow all domains otherwise limit down to the specific domain.
+            if self.google_apps_domain is not None:
+                if not isinstance(self.google_apps_domain, list):
+                    self.google_apps_domain = [self.google_apps_domain]
+                for domain in self.google_apps_domain:
+                    if id_token.get('hd') != domain:
+                        return self.oidc_error(
+                            "You must log in with an account from the {0} domain."
+                            .format(self.google_apps_domain),
+                            self.WRONG_GOOGLE_APPS_DOMAIN)
             return self.oidc_error()
 
         # store credentials by subject
@@ -315,7 +320,7 @@ class OpenIDConnect(object):
         # set a persistent signed cookie containing the ID token
         # and redirect to the final destination
         # TODO: validate redirect destination
-        response = redirect(destination)
+        response = redirect_to(destination)
         self.set_cookie_id_token(id_token)
         return response
 
@@ -323,3 +328,9 @@ class OpenIDConnect(object):
         return (message, 401, {
             'Content-Type': 'text/plain',
         })
+        
+    def redirect_to(self, destination, *args, **kwargs):
+        path = request.args.get('next') or \
+            request.referrer or \
+            destination
+        return redirect(path)
