@@ -46,6 +46,8 @@ class OpenIDConnect(object):
         # should ONLY be turned off for local debugging
         self.id_token_cookie_secure = True
 
+        self.callback_url = '/oidc_callback'
+
         # stuff that we might want to override for tests
         self.http = http if http is not None else httplib2.Http()
         self.credentials_store = credentials_store\
@@ -62,9 +64,6 @@ class OpenIDConnect(object):
         """
         Do setup that requires a Flask app.
         """
-        # register callback route and cookie-setting decorator
-        app.route('/oidc_callback')(self.oidc_callback)
-        app.after_request(self.after_request)
 
         # load client_secrets.json
         self.flow = flow_from_clientsecrets(
@@ -101,6 +100,15 @@ class OpenIDConnect(object):
             self.credentials_store = app.config['OIDC_CREDENTIALS_STORE']
         except KeyError:
             pass
+
+        try:
+            self.callback_url = app.config['OIDC_CALLBACK_URL']
+        except KeyError:
+            pass
+
+        # register callback route and cookie-setting decorator
+        app.route(self.callback_url)(self.oidc_callback)
+        app.after_request(self.after_request)
 
     def get_cookie_id_token(self):
         try:
@@ -139,7 +147,7 @@ class OpenIDConnect(object):
         :return: A redirect, or None if the user is authenticated.
         """
         # the auth callback and error pages don't need user to be authenticated
-        if request.endpoint in frozenset(['oidc_callback', 'oidc_error']):
+        if request.endpoint in frozenset([self.callback_url, 'oidc_error']):
             return None
 
         # retrieve signed ID token cookie
@@ -196,7 +204,7 @@ class OpenIDConnect(object):
         :return:
         """
         flow = copy(self.flow)
-        flow.redirect_uri = url_for('oidc_callback', _external=True)
+        flow.redirect_uri = url_for(self.callback_url, _external=True)
         return flow
 
     def redirect_to_auth_server(self, destination):
@@ -320,7 +328,7 @@ class OpenIDConnect(object):
         # set a persistent signed cookie containing the ID token
         # and redirect to the final destination
         # TODO: validate redirect destination
-        response = redirect_to(destination)
+        response = self.redirect_to(destination)
         self.set_cookie_id_token(id_token)
         return response
 
@@ -328,7 +336,7 @@ class OpenIDConnect(object):
         return (message, 401, {
             'Content-Type': 'text/plain',
         })
-        
+
     def redirect_to(self, destination, *args, **kwargs):
         path = request.args.get('next') or \
             request.referrer or \
