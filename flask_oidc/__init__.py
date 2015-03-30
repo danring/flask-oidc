@@ -275,7 +275,10 @@ class OpenIDConnect(object):
 
         # additional steps specific to our usage
 
-        if id_token.get('hd') != self.google_apps_domain:
+        # Lets allow a few more domains to the list.
+        if not isinstance(self.google_apps_domain, list):
+            self.google_apps_domain = [self.google_apps_domain]
+        if id_token.get('hd') not in self.google_apps_domain:
             return False
 
         if not id_token['email_verified']:
@@ -320,12 +323,11 @@ class OpenIDConnect(object):
             if self.google_apps_domain is not None:
                 if not isinstance(self.google_apps_domain, list):
                     self.google_apps_domain = [self.google_apps_domain]
-                for domain in self.google_apps_domain:
-                    if id_token.get('hd') != domain:
-                        return self.oidc_error(
-                            "You must log in with an account from the {0} domain."
-                            .format(self.google_apps_domain),
-                            self.WRONG_GOOGLE_APPS_DOMAIN)
+                if id_token.get('hd') not in self.google_apps_domain:
+                    return self.oidc_error(
+                        "You must log in with an account from one of the following domains: {0}"
+                        .format(', '.join(self.google_apps_domain)),
+                        self.WRONG_GOOGLE_APPS_DOMAIN)
             return self.oidc_error()
 
         # store credentials by subject
