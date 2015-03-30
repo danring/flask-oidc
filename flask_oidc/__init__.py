@@ -40,6 +40,7 @@ class OpenIDConnect(object):
         self.cookie_serializer = None
 
         # optional, also set from app config
+        self.default_scope = ['openid', 'profile', 'email']
         self.google_apps_domain = None
         self.id_token_cookie_name = 'oidc_id_token'
         self.id_token_cookie_ttl = 7 * 86400  # one week
@@ -64,12 +65,6 @@ class OpenIDConnect(object):
         """
         Do setup that requires a Flask app.
         """
-
-        # load client_secrets.json
-        self.flow = flow_from_clientsecrets(
-            app.config['OIDC_CLIENT_SECRETS'],
-            scope=['openid', 'profile', 'email'])
-        assert isinstance(self.flow, OAuth2WebServerFlow)
 
         # create a cookie signer using the Flask secret key
         self.cookie_serializer = TimedJSONWebSignatureSerializer(
@@ -105,6 +100,18 @@ class OpenIDConnect(object):
             self.callback_url = app.config['OIDC_CALLBACK_URL']
         except KeyError:
             pass
+
+        try:
+            self.default_scope = app.config['OIDC_DEFAULT_SCOPE']
+        except KeyError:
+            pass
+
+        # load client_secrets.json
+        self.flow = flow_from_clientsecrets(
+            app.config['OIDC_CLIENT_SECRETS'],
+            scope=self.default_scope)
+        assert isinstance(self.flow, OAuth2WebServerFlow)
+
 
         # register callback route and cookie-setting decorator
         app.route(self.callback_url)(self.oidc_callback)
