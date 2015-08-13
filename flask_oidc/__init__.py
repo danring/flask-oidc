@@ -275,11 +275,12 @@ class OpenIDConnect(object):
 
         # additional steps specific to our usage
 
-        # Lets allow a few more domains to the list.
-        if not isinstance(self.google_apps_domain, list):
-            self.google_apps_domain = [self.google_apps_domain]
-        if id_token.get('hd') not in self.google_apps_domain:
-            return False
+        if self.google_apps_domain is not None:
+            # Lets allow a few more domains to the list.
+            if not isinstance(self.google_apps_domain, list):
+                self.google_apps_domain = [self.google_apps_domain]
+            if id_token.get('hd') not in self.google_apps_domain:
+                return False
 
         if not id_token['email_verified']:
             return False
