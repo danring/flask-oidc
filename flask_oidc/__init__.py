@@ -211,7 +211,7 @@ class OpenIDConnect(object):
         :return:
         """
         flow = copy(self.flow)
-        flow.redirect_uri = url_for(self.callback_url, _external=True)
+        flow.redirect_uri = url_for('oidc_callback', _external=True)
         return flow
 
     def redirect_to_auth_server(self, destination):
