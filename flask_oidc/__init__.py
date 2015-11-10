@@ -349,6 +349,6 @@ class OpenIDConnect(object):
 
     def redirect_to(self, destination, *args, **kwargs):
         path = request.args.get('next') or \
-            request.referrer or \
-            destination
+            destination or \
+            request.referrer
         return redirect(path)
