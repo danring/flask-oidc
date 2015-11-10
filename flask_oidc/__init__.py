@@ -8,6 +8,7 @@ import logging
 
 from six.moves.urllib.parse import urlencode
 from flask import request, session, redirect, url_for, g
+from oauth2client import util
 from oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow,\
     AccessTokenRefreshError
 import httplib2
@@ -212,6 +213,10 @@ class OpenIDConnect(object):
         """
         flow = copy(self.flow)
         flow.redirect_uri = url_for('oidc_callback', _external=True)
+        # Force approval to get a refresh token
+        flow.params["approval_prompt"] = "force"
+        # Enable incremental auth to resume
+        flow.params["include_granted_scopes"] = "true"
         return flow
 
     def redirect_to_auth_server(self, destination):
@@ -316,6 +321,10 @@ class OpenIDConnect(object):
 
         # make a request to IdP to exchange the auth code for OAuth credentials
         flow = self.flow_for_request()
+        if 'scope' in request.args:
+            scopes = set(util.string_to_scopes(request.args['scope']))
+            scopes |= set(util.string_to_scopes(flow.scope))
+            flow.scope = util.scopes_to_string(scopes)
         credentials = flow.step2_exchange(code, http=self.http)
         id_token = credentials.id_token
         if not self.is_id_token_valid(id_token):
