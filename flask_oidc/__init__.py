@@ -12,7 +12,7 @@ from oauth2client import util
 from oauth2client.client import flow_from_clientsecrets, OAuth2WebServerFlow,\
     AccessTokenRefreshError
 import httplib2
-from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired
+from itsdangerous import JSONWebSignatureSerializer
 
 __all__ = ['OpenIDConnect', 'MemoryCredentials']
 
@@ -68,7 +68,7 @@ class OpenIDConnect(object):
         """
 
         # create a cookie signer using the Flask secret key
-        self.cookie_serializer = TimedJSONWebSignatureSerializer(
+        self.cookie_serializer = JSONWebSignatureSerializer(
             app.config['SECRET_KEY'])
 
         try:
@@ -122,7 +122,7 @@ class OpenIDConnect(object):
         try:
             id_token_cookie = request.cookies[self.id_token_cookie_name]
             return self.cookie_serializer.loads(id_token_cookie)
-        except (KeyError, SignatureExpired):
+        except KeyError:
             logger.debug("Missing or invalid ID token cookie", exc_info=True)
             return None
 
@@ -214,7 +214,6 @@ class OpenIDConnect(object):
         flow = copy(self.flow)
         flow.redirect_uri = url_for('oidc_callback', _external=True)
         # Force approval to get a refresh token
-        flow.params["approval_prompt"] = "force"
         # Enable incremental auth to resume
         flow.params["include_granted_scopes"] = "true"
         return flow
